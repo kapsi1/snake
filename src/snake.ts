@@ -2,24 +2,13 @@
 // zrobić węża jako path zamiast kwadratów
 // płynna animacja
 import { Tile, TileType, TilePosition, Direction, GameState } from './types';
+import { ctx, CANVAS_HEIGHT_PX, CANVAS_WIDTH_PX } from './setupCanvas';
 
-const CANVAS_WIDTH_PX = 600;
-const CANVAS_HEIGHT_PX = 600;
 const BOARD_SIZE = 15;
-const WALLS_WRAP = true;
 const TILE_WIDTH_PX = Math.floor(CANVAS_WIDTH_PX / BOARD_SIZE);
 const TILE_HEIGHT_PX = Math.floor(CANVAS_HEIGHT_PX / BOARD_SIZE);
+const WALLS_WRAP = true;
 const BACKGROUND_COLOR = 'black';
-
-const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
-canvas.setAttribute('width', (CANVAS_WIDTH_PX * window.devicePixelRatio).toString());
-canvas.style.setProperty('width', CANVAS_WIDTH_PX.toString() + 'px');
-canvas.setAttribute('height', (CANVAS_HEIGHT_PX * window.devicePixelRatio).toString());
-canvas.style.setProperty('height', CANVAS_HEIGHT_PX.toString() + 'px');
-const ctx = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D;
-ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-ctx.textBaseline = 'middle';
-ctx.textAlign = 'center';
 
 const randomPos = () => Math.floor(Math.random() * BOARD_SIZE);
 const state: GameState = {
@@ -37,9 +26,9 @@ state.fruit = getNewFruitPosition();
 let lastTimestamp = 0;
 
 function getTileColor(tileIndex: number, totalTiles: number, isGameOver: boolean): string {
-  const opacity = Math.max(0.25, 1 - tileIndex / totalTiles);
-  if (isGameOver) return `rgba(139, 0, 0, ${opacity})`;
-  return `rgba(255, 255, 255, ${opacity})`;
+  const lightness = Math.max(0.25, 1 - tileIndex / totalTiles) * 100;
+  if (isGameOver) return `hsl(0 100 ${lightness / 2})`;
+  return `hsl(100 0 ${lightness})`;
 }
 
 function drawDebugText(x: number, y: number) {
@@ -70,6 +59,7 @@ function drawTile(x: number, y: number, tile: Tile) {
     const fontYPos = yPos + TILE_HEIGHT_PX / 2;
     ctx.fillText('🍒', fontXPos, fontYPos);
   }
+  // drawDebugText(x, y);
 }
 
 function isSameTile(a: TilePosition | null, b: TilePosition | null) {
@@ -77,8 +67,12 @@ function isSameTile(a: TilePosition | null, b: TilePosition | null) {
   return a[0] === b[0] && a[1] === b[1];
 }
 
-function drawTiles() {
-  const { snake, fruit, isGameOver } = state;
+function drawFruit() {
+  drawTile(state.fruit![0], state.fruit![1], { type: TileType.Fruit, color: BACKGROUND_COLOR });
+}
+
+function drawSnake() {
+  const { snake, isGameOver } = state;
   snake.forEach((segment: TilePosition, index: number) => {
     const tile: Tile = {
       type: TileType.Snake,
@@ -87,7 +81,6 @@ function drawTiles() {
     clearTile(segment[0], segment[1]);
     drawTile(segment[0], segment[1], tile);
   });
-  drawTile(fruit![0], fruit![1], { type: TileType.Fruit, color: BACKGROUND_COLOR });
 }
 
 function getNewFruitPosition() {
@@ -199,7 +192,7 @@ function tick(timestamp: number) {
   }
 
   if (state.isGameOver) {
-    drawTiles();
+    drawSnake();
     return;
   }
 
@@ -208,6 +201,7 @@ function tick(timestamp: number) {
     ateFruit = true;
     state.snake.splice(1, 0, [snake[0][0], snake[0][1]]);
     state.fruit = getNewFruitPosition();
+    drawFruit();
   }
 
   const lastSnakeSegment = snake[snake.length - 1];
@@ -217,9 +211,10 @@ function tick(timestamp: number) {
     if (ateFruit) return segment;
     return snake[index - 1];
   });
-  drawTiles();
+  drawSnake();
   requestAnimationFrame(tick);
 }
 
-drawTiles();
+drawSnake();
+drawFruit();
 requestAnimationFrame(tick);
