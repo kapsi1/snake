@@ -13,22 +13,28 @@ type Position = {
 
 const BOARD_SIZE = 3;
 const CELL_SIZE_PX = Math.floor(CANVAS_WIDTH_PX / BOARD_SIZE);
-console.log('CELL_SIZE_PX', CELL_SIZE_PX);
 const BACKGROUND_COLOR = 'black';
 const DOT_RADIUS = 5;
 const SPEED = CELL_SIZE_PX / 5; // px/s
 
-let dot: Position;
-let prevDot: Position | null = null;
+const snake: GridPosition[] = [
+  { x: 0, y: 1 },
+  { x: 1, y: 1 },
+  { x: 1, y: 0 },
+  { x: 2, y: 0 },
+];
+const prevCell: GridPosition = { x: -1, y: -1 };
+let currentCell: GridPosition = { x: 0, y: 1 };
+const point: Position = { ...cellCenterPoint(currentCell) };
+const prevPoint: Position | null = null;
 let lastTimestamp: number | null = null;
 let pause = false;
 let direction = Direction.Right;
 let prevDirection: Direction | null = null;
 let frameCount = 0;
-let prevCell: GridPosition = { x: -1, y: -1 };
-let currentCell: GridPosition;
-// let distanceToCenter: Position = { x: 0, y: 0 };
 let distanceTravelled = 0;
+
+ctx.lineCap = 'round';
 
 function clearBackground() {
   ctx.fillStyle = BACKGROUND_COLOR;
@@ -39,15 +45,17 @@ function drawDebug() {
   ctx.fillStyle = '#3b3b3b';
   for (let x = 0; x < BOARD_SIZE; x++) {
     for (let y = 0; y < BOARD_SIZE; y++) {
-      const center = cellCenterPoint(x, y);
-      ctx.fillText(`${center.x}, ${center.y}`, center.x, center.y);
+      const center = cellCenterPoint({ x, y });
+      // ctx.fillText(`${center.x}, ${center.y}`, center.x, center.y);
+      ctx.fillText(`${x}, ${y}`, center.x, center.y);
     }
   }
-  // ctx.fillText(`${distanceToCenter.x}, ${distanceToCenter.y}`, CANVAS_WIDTH_PX - 50, 50);
+  if (prevPoint) drawDot(prevPoint, { color: '#0a5600' });
 }
 
 function drawGrid() {
   ctx.strokeStyle = '#3b3b3b';
+  ctx.lineWidth = 1;
 
   for (let x = 1; x < BOARD_SIZE; x++) {
     ctx.beginPath();
@@ -63,56 +71,42 @@ function drawGrid() {
   }
 }
 
-function cellCenterPoint(gridX: number, gridY: number): Position {
+function cellCenterPoint(pos: GridPosition): Position {
   return {
-    x: gridX * CELL_SIZE_PX + CELL_SIZE_PX / 2,
-    y: gridY * CELL_SIZE_PX + CELL_SIZE_PX / 2,
-  };
-}
-
-function cellTopLeftPoint(gridX: number, gridY: number): Position {
-  return {
-    x: gridX * CELL_SIZE_PX,
-    y: gridY * CELL_SIZE_PX,
+    x: pos.x * CELL_SIZE_PX + CELL_SIZE_PX / 2,
+    y: pos.y * CELL_SIZE_PX + CELL_SIZE_PX / 2,
   };
 }
 
 function getCurrentCell(): GridPosition {
   return {
-    x: Math.floor(dot.x / CELL_SIZE_PX),
-    y: Math.floor(dot.y / CELL_SIZE_PX),
+    x: Math.floor(point.x / CELL_SIZE_PX),
+    y: Math.floor(point.y / CELL_SIZE_PX),
   };
 }
 
-function drawDot(pos: Position, options?: { color?: string; radius?: number }) {
-  ctx.fillStyle = options?.color || '#0085ee';
-  const radius = options?.radius || DOT_RADIUS;
+function drawDot(pos: Position, color?: string) {
+  ctx.fillStyle = color || '#0085ee';
   ctx.beginPath();
-  ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+  ctx.arc(pos.x, pos.y, DOT_RADIUS, 0, Math.PI * 2);
   ctx.fill();
 }
 
-// function distanceTravelled(): number {
-//   const topLeftPoint = cellTopLeftPoint(currentCell.x, currentCell.y);
-//   switch (prevDirection!) {
-//     case Direction.Right:
-//       return dot.x - topLeftPoint.x;
-//     case Direction.Left:
-//       return dot.x - topLeftPoint.x + CELL_SIZE_PX;
-//     case Direction.Down:
-//       return dot.y - topLeftPoint.y;
-//     case Direction.Up:
-//       return dot.y - topLeftPoint.y + CELL_SIZE_PX;
-//   }
-// }
+function drawSnake() {
+  let cellCenter: Position;
+  ctx.strokeStyle = '#0085ee';
+  ctx.lineWidth = 20;
 
-// function isOppositeDirection(): boolean {
-//   if (direction === Direction.Right && prevDirection === Direction.Left) return true;
-//   if (direction === Direction.Left && prevDirection === Direction.Right) return true;
-//   if (direction === Direction.Up && prevDirection === Direction.Down) return true;
-//   if (direction === Direction.Down && prevDirection === Direction.Up) return true;
-//   return false;
-// }
+  // let point =
+  ctx.beginPath();
+  for (let i = 0; i < snake.length; i++) {
+    cellCenter = cellCenterPoint(snake[i]);
+    // ctx.moveTo(cellCenter.x, cellCenter.y);
+    // ctx.lineTo(cellCenter.x + 100, cellCenter.y + 100);
+    drawDot(cellCenter);
+  }
+  // ctx.stroke();
+}
 
 function tick(timestamp: number) {
   if (pause) return;
@@ -131,73 +125,46 @@ function tick(timestamp: number) {
   const deltaPx = (SPEED * deltaT) / 1000;
   distanceTravelled += deltaPx;
 
-  if (direction === Direction.Right) dot.x += deltaPx;
-  if (direction === Direction.Left) dot.x -= deltaPx;
-  if (direction === Direction.Up) dot.y -= deltaPx;
-  if (direction === Direction.Down) dot.y += deltaPx;
+  if (direction === Direction.Right) point.x += deltaPx;
+  if (direction === Direction.Left) point.x -= deltaPx;
+  if (direction === Direction.Up) point.y -= deltaPx;
+  if (direction === Direction.Down) point.y += deltaPx;
 
-  // distanceToCenter.x = Math.round(dot.x - center.x);
-  // distanceToCenter.y = Math.round(dot.y - center.y);
-
+  // We want to keep time spent in each cell constant.
+  // When changing directions, start moving from center of current cell,
+  // and add distance travelled in this cell
+  // TODO animate instead of teleporting
   if (prevDirection) {
-    const center = cellCenterPoint(currentCell.x, currentCell.y);
-    // let distance = distanceTravelled();
-    prevDot = { x: dot.x, y: dot.y };
-    // let distanceToEdge: number;
-
+    // prevDot = { x: dot.x, y: dot.y };
+    const cellCenter = cellCenterPoint({ x: currentCell.x, y: currentCell.y });
     switch (direction) {
       case Direction.Right:
-        dot = { x: center.x + distanceTravelled, y: center.y };
+        point.x = cellCenter.x + distanceTravelled;
+        point.y = cellCenter.y;
         break;
       case Direction.Left:
-        dot = { x: center.x - distanceTravelled, y: center.y };
+        point.x = cellCenter.x - distanceTravelled;
+        point.y = cellCenter.y;
         break;
       case Direction.Down:
-        dot = { x: center.x, y: center.y + distanceTravelled };
+        point.x = cellCenter.x;
+        point.y = cellCenter.y + distanceTravelled;
         break;
       case Direction.Up:
-        dot = { x: center.x, y: center.y - distanceTravelled };
+        point.x = cellCenter.x;
+        point.y = cellCenter.y - distanceTravelled;
         break;
     }
 
-    // let distanceToEdge = { x: CELL_SIZE_PX / 2 + distanceToCenter.x, y: CELL_SIZE_PX / 2 + distanceToCenter.y };
-
-    console.log(
-      prevDirection,
-      '->',
-      direction,
-      'center',
-      center,
-      'distanceTravelled',
-      distanceTravelled,
-      // 'distance',
-      // distance,
-      // 'distanceToCenter',
-      // distanceToCenter,
-      'dot',
-      prevDot,
-      '->',
-      dot
-    );
     prevDirection = null;
   }
 
   clearBackground();
   drawGrid();
   drawDebug();
-  drawDot(dot);
+  // drawDot(point);
+  drawSnake();
   ctx.fillText;
-  if (prevDot) {
-    drawDot(prevDot, { color: '#0a5600' });
-    // ctx.beginPath();
-    // ctx.moveTo(dot.x, dot.y);
-    // ctx.lineTo(target.x, target.y);
-    // ctx.moveTo(centerPoint.x, centerPoint.y);
-    // ctx.lineTo(dot.x, dot.y);
-    // ctx.moveTo(centerPoint.x, centerPoint.y);
-    // ctx.lineTo(target.x, target.y);
-    // ctx.stroke();
-  }
   requestAnimationFrame(tick);
 }
 
@@ -237,11 +204,8 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-function setup() {
-  dot = cellCenterPoint(0, 1);
-  drawDot(dot);
-  drawGrid();
-  requestAnimationFrame(tick);
-}
+// requestAnimationFrame(tick);
 
-setup();
+drawGrid();
+drawSnake();
+drawDebug();
