@@ -16,7 +16,6 @@ const CELL_SIZE_PX = Math.floor(CANVAS_WIDTH_PX / BOARD_SIZE);
 const BACKGROUND_COLOR = 'black';
 const DOT_RADIUS = 5;
 const SPEED = CELL_SIZE_PX / 10; // px/s
-console.log('SPEED', SPEED);
 
 const snake: GridPosition[] = [
   { x: 0, y: 1 },
@@ -25,30 +24,21 @@ const snake: GridPosition[] = [
   { x: 2, y: 0 },
   { x: 2, y: 1 },
 ];
-let debugEl = document.querySelector('#debug') as HTMLDivElement;
+const debugEl = document.querySelector('#debug') as HTMLDivElement;
 const prevCell: GridPosition = { x: -1, y: -1 };
-const currentCell: GridPosition = { x: 0, y: 1 };
-const head: Position = { ...cellCenterPoint(currentCell) };
+// const currentCell: GridPosition = { x: 0, y: 1 };
+const currentCell: GridPosition = { x: snake[snake.length - 1].x, y: snake[snake.length - 1].y };
+const head: Position = { ...getCellCenter(currentCell) };
 let prevHead: Position | null = null;
-const catchupHead: Position = { x: 0, y: 0 };
 let lastTimestamp: number | null = null;
 let pause = false;
-let direction = Direction.Right;
+// let direction = Direction.Right;
+let direction = Direction.Down;
 let prevDirection: Direction | null = null;
-
-let deltaT: number;
-let deltaPx: number;
 let distanceTravelled = 0;
-const headDiffNormalizedVector: Position = { x: 0, y: 0 };
-let headDistance: number;
-const halfPoint: Position = { x: 0, y: 0 };
-const headDiffVector = { x: 0, y: 0 };
-let remainingCellDistance: number;
-let remainingTimeInCell: number;
-let catchupSpeed: number;
-let catchupDeltaPx: number;
 
 ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
 
 function clearBackground() {
   ctx.fillStyle = BACKGROUND_COLOR;
@@ -59,50 +49,19 @@ function drawDebug() {
   ctx.fillStyle = '#3b3b3b';
   for (let x = 0; x < BOARD_SIZE; x++) {
     for (let y = 0; y < BOARD_SIZE; y++) {
-      const center = cellCenterPoint({ x, y });
-      ctx.fillText(center.x + ', ' + center.y, center.x, center.y); // pixel positions
-      // ctx.fillText(x + ', ' + y, center.x, center.y); // grid positions
+      const center = getCellCenter({ x, y });
+      ctx.fillText('(' + x + ', ' + y + ')', center.x, center.y - 10); // grid positions
+      ctx.fillText('(' + center.x + ', ' + center.y + ')', center.x, center.y + 10); // pixel positions
+      drawDot(center, '#3b3b3b', 2);
     }
   }
-  if (prevHead) {
-    drawDot(prevHead, '#0a5600');
-    ctx.beginPath();
-    ctx.moveTo(head.x, head.y);
-    ctx.lineTo(prevHead.x, prevHead.y);
-    ctx.stroke();
-  }
-}
-
-function printDebug() {
-  debugEl.innerHTML =
-    'prevHead(' +
-    Math.trunc(prevHead?.x || 0) +
-    ', ' +
-    Math.trunc(prevHead?.y || 0) +
-    ') head(' +
-    Math.trunc(head.x) +
-    ', ' +
-    Math.trunc(head.y) +
-    ') prevHead(' +
-    Math.trunc(prevHead?.x || 0) +
-    ', ' +
-    Math.trunc(prevHead?.y || 0) +
-    ') catchupHead(' +
-    Math.trunc(catchupHead.x) +
-    ', ' +
-    Math.trunc(catchupHead.y) +
-    ') catchupSpeed: ' +
-    catchupSpeed.toFixed(2) +
-    // ' deltaT: ' +
-    // deltaT.toFixed(2) +
-    // ' deltaPx: ' +
-    // deltaPx.toFixed(4) +
-    ' catchupDeltaPx: ' +
-    catchupDeltaPx.toFixed(4) +
-    ' remainingTimeInCell: ' +
-    remainingTimeInCell.toFixed(2) +
-    ' headDistance: ' +
-    Math.trunc(headDistance);
+  // if (prevHead) {
+  //   drawDot(prevHead, '#0a5600');
+  //   ctx.beginPath();
+  //   ctx.moveTo(head.x, head.y);
+  //   ctx.lineTo(prevHead.x, prevHead.y);
+  //   ctx.stroke();
+  // }
 }
 
 function drawGrid() {
@@ -123,7 +82,7 @@ function drawGrid() {
   }
 }
 
-function cellCenterPoint(pos: GridPosition): Position {
+function getCellCenter(pos: GridPosition): Position {
   return {
     x: pos.x * CELL_SIZE_PX + CELL_SIZE_PX / 2,
     y: pos.y * CELL_SIZE_PX + CELL_SIZE_PX / 2,
@@ -149,38 +108,96 @@ function drawDot(pos: Position, color?: string, radius = DOT_RADIUS) {
 }
 
 function drawSnake() {
-  let cellCenter: Position;
-  let nextCellCenter: Position | null;
-  const colors = ['red', 'green', 'blue', 'yellow', 'red'];
+  console.log(
+    snake,
+    snake.map((pos) => getCellCenter(pos))
+  );
+
+  // lineTo()
+  // let cellCenter: Position;
   // ctx.strokeStyle = '#0085ee';
   // ctx.lineWidth = CELL_SIZE_PX / 4;
-  ctx.lineWidth = 5;
-  // ctx.lineJoin = 'round';
-
-  cellCenter = cellCenterPoint(snake[0]);
   // ctx.beginPath();
+  // cellCenter = getCellCenter(snake[0]);
+  // ctx.moveTo(cellCenter.x, cellCenter.y);
+  // for (let i = 0; i < snake.length; i++) {
+  //   cellCenter = getCellCenter(snake[i]);
+  //   ctx.lineTo(cellCenter.x, cellCenter.y);
+  // }
+  // ctx.stroke();
+
+  // arcTo()
+  //TODO calculate
+  const offset = 50;
+  const radius = 50;
+  let center: Position;
+  let nextCenter: Position | null;
+  let nextNextCenter: Position | null;
+  // ctx.lineWidth = 5;
+  ctx.lineWidth = CELL_SIZE_PX / 4;
+  // ctx.strokeStyle = '#0085ee';
+  const colors = ['red', 'green', 'blue', 'yellow', 'red'];
   for (let i = 0; i < snake.length; i++) {
     ctx.strokeStyle = colors[i];
-    ctx.beginPath();
-    ctx.moveTo(cellCenter.x, cellCenter.y);
-    cellCenter = cellCenterPoint(snake[i]);
-    // ctx.lineTo(cellCenter.x, cellCenter.y);
-    nextCellCenter = i < snake.length - 1 ? cellCenterPoint(snake[i + 1]) : null;
-    console.log(colors[i], cellCenter, nextCellCenter);
-    if (nextCellCenter) {
-      ctx.arcTo(cellCenter.x, cellCenter.y, nextCellCenter.x, nextCellCenter.y, 100);
+    center = getCellCenter(snake[i]);
+    nextCenter = i < snake.length - 1 ? getCellCenter(snake[i + 1]) : null;
+    nextNextCenter = i < snake.length - 2 ? getCellCenter(snake[i + 2]) : null;
+
+    let newX = center.x;
+    let newY = center.y;
+    if (i > 0) {
+      if (nextCenter && nextCenter.x === center.x) {
+        // Moving vertically
+        newY += nextCenter.y > center.y ? offset : -offset;
+      } else if (nextCenter && center.y === nextCenter.y) {
+        // Moving horizontally
+        newX += nextCenter.x > center.x ? offset : -offset;
+      }
     }
-    // else ctx.lineTo(cellCenter.x, cellCenter.y);
+    ctx.beginPath();
+    ctx.moveTo(newX, newY);
+    console.log(i, 'moveTo', { x: newX, y: newY });
+
+    if (nextCenter && nextNextCenter) {
+      ctx.arcTo(nextCenter.x, nextCenter.y, nextNextCenter.x, nextNextCenter.y, radius);
+      console.log(i, colors[i], 'arcTo', nextCenter, nextNextCenter);
+    } else if (nextCenter) {
+      console.log(i, colors[i], 'lineTo', nextCenter);
+      ctx.lineTo(nextCenter.x, nextCenter.y);
+    }
     ctx.stroke();
   }
-  // ctx.stroke();
+
+  // quadraticCurveTo()
+  // let cellCenter: Position;
+  // let nextCellCenter: Position | null;
+  // let nextNextCellCenter: Position | null;
+  // ctx.lineWidth = 10;
+  // const colors = ['red', 'green', 'blue', 'yellow', 'red'];
+  // for (let i = 0; i < snake.length; i++) {
+  //   ctx.strokeStyle = colors[i];
+  //   cellCenter = getCellCenter(snake[i]);
+  //   nextCellCenter = i < snake.length - 1 ? getCellCenter(snake[i + 1]) : null;
+  //   nextNextCellCenter = i < snake.length - 2 ? getCellCenter(snake[i + 2]) : null;
+  //   ctx.beginPath();
+  //   ctx.moveTo(cellCenter.x, cellCenter.y);
+  //   console.log(i, 'moveTo', cellCenter);
+  //   if (nextCellCenter && nextNextCellCenter) {
+  //     ctx.quadraticCurveTo(nextCellCenter.x, nextCellCenter.y, nextNextCellCenter.x, nextNextCellCenter.y);
+  //     console.log(i, colors[i], 'quadraticCurveTo', nextCellCenter, nextNextCellCenter);
+  //   } else if (nextCellCenter) {
+  //     console.log(i, colors[i], 'lineTo', nextCellCenter);
+  //     ctx.lineTo(nextCellCenter.x, nextCellCenter.y);
+  //   }
+  //   ctx.stroke();
+  // }
 }
 
 function tick(timestamp: number) {
   if (pause) return;
   if (lastTimestamp === null) lastTimestamp = timestamp;
-  deltaT = timestamp - lastTimestamp;
-  deltaPx = (SPEED * deltaT) / 1000;
+  const deltaT = timestamp - lastTimestamp;
+  const deltaPx = (SPEED * deltaT) / 1000;
   lastTimestamp = timestamp;
 
   const cc = getCurrentCell();
@@ -203,10 +220,9 @@ function tick(timestamp: number) {
   // We want to keep time spent in each cell constant.
   // When changing directions, start moving from center of current cell,
   // and add distance travelled in this cell
-  // TODO animate instead of teleporting
   if (prevDirection) {
     prevHead = { x: head.x, y: head.y };
-    const cellCenter = cellCenterPoint({ x: currentCell.x, y: currentCell.y });
+    const cellCenter = getCellCenter({ x: currentCell.x, y: currentCell.y });
 
     switch (direction) {
       case Direction.Right:
@@ -227,57 +243,7 @@ function tick(timestamp: number) {
         break;
     }
 
-    catchupHead.x = prevHead.x;
-    catchupHead.y = prevHead.y;
-
-    // In the remaining time allowed for the cell, catch up to the new head position
-    headDiffVector.x = head.x - prevHead.x;
-    headDiffVector.y = head.y - prevHead.y;
-    headDistance = Math.hypot(headDiffVector.x, headDiffVector.y);
-    headDiffNormalizedVector.x = headDiffVector.x / headDistance;
-    headDiffNormalizedVector.y = headDiffVector.y / headDistance;
-    remainingCellDistance = CELL_SIZE_PX - distanceTravelled;
-    remainingTimeInCell = remainingCellDistance / SPEED;
-    catchupSpeed = headDistance / remainingTimeInCell;
-
-    console.log(
-      'head',
-      roundPos(prevHead),
-      '->',
-      roundPos(head),
-      // 'distanceTravelled',
-      // Math.round(distanceTravelled),
-      // 'remainingCellDistance',
-      // Math.round(remainingCellDistance),
-      // 'remainingTimeInCell',
-      // Math.trunc(remainingTimeInCell),
-      'headDiffVector',
-      roundPos(headDiffVector),
-      'headDistance',
-      Math.round(headDistance),
-      'headDiffNormalizedVector',
-      headDiffNormalizedVector,
-      'catchupSpeed',
-      Math.round(catchupSpeed)
-    );
-
     prevDirection = null;
-  }
-
-  if (prevHead) {
-    headDiffVector.x = head.x - prevHead.x;
-    headDiffVector.y = head.y - prevHead.y;
-    headDistance = Math.hypot(headDiffVector.x, headDiffVector.y);
-    headDiffNormalizedVector.x = headDiffVector.x / headDistance;
-    headDiffNormalizedVector.y = headDiffVector.y / headDistance;
-    remainingCellDistance = CELL_SIZE_PX - distanceTravelled;
-    remainingTimeInCell = remainingCellDistance / SPEED;
-    catchupSpeed = headDistance / remainingTimeInCell;
-    // halfPoint.x = prevHead.x + (headDiffNormalizedVector.x * headDistance) / 2;
-    // halfPoint.y = prevHead.y + (headDiffNormalizedVector.y * headDistance) / 2;
-    catchupDeltaPx = (catchupSpeed * deltaT) / 1000;
-    catchupHead.x += headDiffNormalizedVector.x * catchupDeltaPx;
-    catchupHead.y += headDiffNormalizedVector.y * catchupDeltaPx;
   }
 
   clearBackground();
@@ -285,11 +251,6 @@ function tick(timestamp: number) {
   drawDebug();
   // drawSnake();
   drawDot(head);
-  if (prevHead) {
-    // drawDot(halfPoint, 'white', 2);
-    drawDot(catchupHead, 'white', 2);
-    printDebug();
-  }
   ctx.fillText;
   requestAnimationFrame(tick);
 }
@@ -330,8 +291,9 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-requestAnimationFrame(tick);
+// requestAnimationFrame(tick);
 
-// drawGrid();
-// drawSnake();
-// drawDebug();
+drawGrid();
+drawSnake();
+drawDebug();
+drawDot(head);
