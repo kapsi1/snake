@@ -1,7 +1,8 @@
 const CANVAS_WIDTH_PX = 600;
 const CANVAS_HEIGHT_PX = 600;
 const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
-const ctx = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D;
+// const ctx = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D;
+const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 
 canvas.setAttribute('width', (CANVAS_WIDTH_PX * window.devicePixelRatio).toString());
 canvas.style.setProperty('width', CANVAS_WIDTH_PX.toString() + 'px');
