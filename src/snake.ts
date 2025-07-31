@@ -6,7 +6,7 @@ const TILE_WIDTH_PX = Math.floor(CANVAS_WIDTH_PX / BOARD_SIZE);
 const TILE_HEIGHT_PX = Math.floor(CANVAS_HEIGHT_PX / BOARD_SIZE);
 const WALLS_WRAP = true;
 const BACKGROUND_COLOR = 'black';
-const ANIMATION_FRAME_LENGTH = 500;
+const ANIMATION_FRAME_LENGTH_MS = 100;
 
 const randomPos = () => Math.floor(Math.random() * BOARD_SIZE);
 const state: GameState = {
@@ -141,7 +141,7 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
 function tick(timestamp: number) {
   const deltaT = timestamp - lastTimestamp;
   // console.log('last', lastTimestamp, 'current', timestamp, 'delta', deltaT);
-  if (deltaT < ANIMATION_FRAME_LENGTH) {
+  if (deltaT < ANIMATION_FRAME_LENGTH_MS) {
     requestAnimationFrame(tick);
     return;
   }
