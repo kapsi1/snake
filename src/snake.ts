@@ -1,6 +1,3 @@
-// TODO
-// zrobić węża jako path zamiast kwadratów
-// płynna animacja
 import { Tile, TileType, TilePosition, Direction, GameState } from './types';
 import { ctx, CANVAS_HEIGHT_PX, CANVAS_WIDTH_PX } from './setupCanvas';
 
@@ -9,6 +6,7 @@ const TILE_WIDTH_PX = Math.floor(CANVAS_WIDTH_PX / BOARD_SIZE);
 const TILE_HEIGHT_PX = Math.floor(CANVAS_HEIGHT_PX / BOARD_SIZE);
 const WALLS_WRAP = true;
 const BACKGROUND_COLOR = 'black';
+const ANIMATION_FRAME_LENGTH = 500;
 
 const randomPos = () => Math.floor(Math.random() * BOARD_SIZE);
 const state: GameState = {
@@ -20,10 +18,17 @@ const state: GameState = {
     [1, 4],
   ],
   fruit: null,
+  isPaused: false,
   isGameOver: false,
 };
 state.fruit = getNewFruitPosition();
 let lastTimestamp = 0;
+let score = 0;
+const scoreEl = document.querySelector('#score span') as HTMLSpanElement;
+const highScoreEl = document.querySelector('#high-score span') as HTMLSpanElement;
+const highScore = localStorage.getItem('highScore') || '0';
+highScoreEl.textContent = highScore;
+const pauseEl = document.querySelector('#pause') as HTMLDivElement;
 
 function getTileColor(tileIndex: number, totalTiles: number, isGameOver: boolean): string {
   const lightness = Math.max(0.25, 1 - tileIndex / totalTiles) * 100;
@@ -97,19 +102,28 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
   if (state.isGameOver) return;
   state.prevDirection = state.direction;
   switch (event.key) {
+    case ' ': // Spacebar
+      state.isPaused = !state.isPaused;
+      pauseEl.style.display = state.isPaused ? 'flex' : 'none';
+      if (!state.isPaused) requestAnimationFrame(tick);
+      break;
     case 'Escape':
       state.isGameOver = true;
       break;
     case 'w':
+    case 'ArrowUp':
       state.direction = Direction.Up;
       break;
     case 's':
+    case 'ArrowDown':
       state.direction = Direction.Down;
       break;
     case 'd':
+    case 'ArrowRight':
       state.direction = Direction.Right;
       break;
     case 'a':
+    case 'ArrowLeft':
       state.direction = Direction.Left;
       break;
   }
@@ -126,9 +140,8 @@ window.addEventListener('keydown', (event: KeyboardEvent) => {
 
 function tick(timestamp: number) {
   const deltaT = timestamp - lastTimestamp;
-  // console.log("last", lastTimestamp, "current", timestamp, "delta", deltaT);
-  // if (deltaT < 100) {
-  if (deltaT < 100) {
+  // console.log('last', lastTimestamp, 'current', timestamp, 'delta', deltaT);
+  if (deltaT < ANIMATION_FRAME_LENGTH) {
     requestAnimationFrame(tick);
     return;
   }
@@ -199,6 +212,14 @@ function tick(timestamp: number) {
   let ateFruit = false;
   if (isSameTile(newHead, fruit)) {
     ateFruit = true;
+    score++;
+    scoreEl.textContent = score.toString();
+    let highScore = parseInt(localStorage.getItem('highScore') || '0');
+    if (score > highScore) {
+      highScore = score;
+      localStorage.setItem('highScore', highScore.toString());
+      highScoreEl.textContent = highScore.toString();
+    }
     state.snake.splice(1, 0, [snake[0][0], snake[0][1]]);
     state.fruit = getNewFruitPosition();
     drawFruit();
@@ -212,7 +233,7 @@ function tick(timestamp: number) {
     return snake[index - 1];
   });
   drawSnake();
-  requestAnimationFrame(tick);
+  if (!state.isPaused) requestAnimationFrame(tick);
 }
 
 drawSnake();

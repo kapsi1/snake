@@ -12,16 +12,45 @@
         margin-top: 10px;
         border: 1px solid #3b3b3b;
       }
+      #pause {
+        display: none;
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        width: 600px;
+        height: 600px;
+        color: white;
+        align-items: center;
+
+        & div {
+          background: gray;
+          height: 50px;
+          line-height: 50px;
+          text-align: center;
+          font-family: sans-serif;
+          font-size: 30px;
+          width: 100%;
+        }
+      }
       #debug {
         font-family: monospace;
         color: #a3a3a3;
+      }
+      .score {
+        color: #d1d1d1;
+        margin-left: 10px;
+        font-family: sans-serif;
+        font-size: 30px;
       }
     </style>
   </head>
   <body>
     <canvas id="gameCanvas"></canvas>
-    <!-- <script type="module" src="./snake.ts"></script> -->
-    <script type="module" src="./snake2.ts"></script>
+    <div id="pause"><div>PAUSED</div></div>
+    <script type="module" src="./snake.ts"></script>
+    <!-- <script type="module" src="./snake2.ts"></script> -->
+    <div class="score" id="score">Score: <span>0</span></div>
+    <div class="score" id="high-score">High score: <span>0</span></div>
     <pre id="debug"></pre>
   </body>
 </html>

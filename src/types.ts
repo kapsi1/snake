@@ -24,6 +24,7 @@ type GameState = {
   prevDirection: Direction;
   snake: Snake;
   fruit: TilePosition | null;
+  isPaused: boolean;
   isGameOver: boolean;
 };
 
